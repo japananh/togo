@@ -2,9 +2,12 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
+	mmysql "github.com/golang-migrate/migrate/v4/database/mysql"
 	"github.com/japananh/togo/common"
 	"github.com/japananh/togo/component"
 	"github.com/japananh/togo/component/tokenprovider"
@@ -27,6 +30,27 @@ type Server struct {
 	DBConn      *gorm.DB
 	TokenConfig *tokenprovider.TokenConfig
 	ServerReady chan bool
+}
+
+func (s *Server) RunMigration(dbConnectionStr string) {
+	sqlDB, err := sql.Open("mysql", dbConnectionStr)
+	if err != nil {
+		log.Fatalln("cannot open migration database:", err)
+	}
+
+	driver, _ := mmysql.WithInstance(sqlDB, &mmysql.Config{})
+	dbMigration, err := migrate.NewWithDatabaseInstance(
+		"file://./db/migrations",
+		"mysql",
+		driver,
+	)
+	if err != nil {
+		log.Fatalln("cannot open migration database:", err)
+	}
+
+	if err := dbMigration.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatal("Fail to run migration: ", err)
+	}
 }
 
 // Start start http server

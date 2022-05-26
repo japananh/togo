@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/japananh/togo/common"
 	"github.com/japananh/togo/component/tokenprovider"
 	"github.com/japananh/togo/server"
@@ -8,9 +10,6 @@ import (
 	"gorm.io/gorm"
 	"log"
 )
-
-// //go:embed migrations/*.sql
-//var embedMigrations embed.FS
 
 func main() {
 	// Load config
@@ -44,33 +43,6 @@ func main() {
 		close(s.ServerReady)
 	}()
 
+	s.RunMigration(config.DBConnectionURL())
 	s.Start()
 }
-
-//func runDBMigrations(db *gorm.DB, testDb *gorm.DB) error {
-//	sqlDB, err := db.DB()
-//	if err != nil {
-//		return err
-//	}
-//
-//	sqlTestDB, err := testDb.DB()
-//	if err != nil {
-//		return err
-//	}
-//
-//	goose.SetBaseFS(embedMigrations)
-//
-//	if err := goose.SetDialect("mysql"); err != nil {
-//		return err
-//	}
-//
-//	if err := goose.Up(sqlDB, "migrations"); err != nil {
-//		return err
-//	}
-//
-//	if err := goose.Up(sqlTestDB, "migrations"); err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
