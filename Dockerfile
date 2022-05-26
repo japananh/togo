@@ -11,7 +11,7 @@ FROM alpine:3.15
 WORKDIR /app
 COPY --from=builder /app/main .
 COPY .env .
-COPY migrations ./app/migrations
+COPY /db/migrations ./app/db/migrations
 
 EXPOSE 8000
 CMD [ "/app/main" ]

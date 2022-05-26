@@ -49,7 +49,7 @@ services:
       - SYSTEM_KEY=nana@123
       - REFRESH_TOKEN_EXPIRY=604800
       - ACCESS_TOKEN_EXPIRY=86400
-      - TEST_DB_CONNECTION_STR=nana:nana@123@tcp(db_test:3306)/manabie_togo?charset=utf8mb4&parseTime=True&loc=Local
+      - DB_CONNECTION_STR_TEST=nana:nana@123@tcp(db_test:3306)/manabie_togo?charset=utf8mb4&parseTime=True&loc=Local
     depends_on:
       - db
       - db_test
