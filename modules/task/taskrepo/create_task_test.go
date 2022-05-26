@@ -1,64 +1,44 @@
 package taskrepo_test
 
 import (
-	"context"
 	"errors"
-	"github.com/japananh/togo/common"
+	"github.com/japananh/togo/mock"
 	"github.com/japananh/togo/modules/task/taskmodel"
 	"github.com/japananh/togo/modules/task/taskrepo"
-	"github.com/japananh/togo/modules/user/usermodel"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-type mockCreateTaskStore struct{}
-
-func (mockCreateTaskStore) FindTaskByCondition(
-	_ context.Context,
-	_ map[string]interface{},
-	_ ...string,
-) (*taskmodel.Task, error) {
-	task := taskmodel.Task{
-		Title:       "Task 1",
-		Description: "Task description",
-		CreatedBy:   1,
-	}
-	return &task, nil
-}
-
-func (mockCreateTaskStore) CountUserDailyTask(_ context.Context, createdBy int) (int, error) {
-	if createdBy >= 1 {
-		return 3, nil
-	}
-	return 0, errors.New("invalid task creator")
-}
-
-func (mockCreateTaskStore) CreateTask(_ context.Context, data *taskmodel.TaskCreate) error {
-	data.Id = 2
-	return nil
-}
-
-type mockUserStore struct{}
-
-func (mockUserStore) FindUser(_ context.Context, conditions map[string]interface{}, _ ...string) (*usermodel.User, error) {
-	if val, ok := conditions["id"]; ok && val.(int) > 0 {
-		return &usermodel.User{
-			Email:          "user@gmail.com",
-			Password:       "user@123",
-			DailyTaskLimit: 5,
-		}, nil
-	}
-	return nil, common.NewCustomError(nil, "invalid task creator", "ErrInvalidCreatedBy")
-}
-
 func TestCreateTaskRepo_CreateTask(t *testing.T) {
-	repo := taskrepo.NewCreateTaskRepo(mockCreateTaskStore{}, mockUserStore{})
-	err := repo.CreateTask(nil, &taskmodel.TaskCreate{Title: "Task", Description: "Task description", AssigneeId: 1, CreatedBy: 1, ParentId: 1})
-	assert.Nil(t, err)
-}
+	var tcs = []struct {
+		assignee    int
+		createdBy   int
+		parentId    int
+		title       string
+		description string
+		expectedErr error
+	}{
+		{0, 1, 0, "Task 1", "Description 1", nil},
+		{0, 2, 0, "Task 2", "Description 1", errors.New("exceed daily task limit")},
+		{1, 3, 0, "Task 3", "Description 2", errors.New("invalid task creator")},
+		{3, 1, 0, "Task 4", "Description 3", errors.New("invalid assignee")},
+		{0, 1, 3, "Task 5", "Description 3", errors.New("invalid parent task")},
+	}
 
-func TestCreateTaskRepo_CreateTaskInvalidCreatedBy(t *testing.T) {
-	repo := taskrepo.NewCreateTaskRepo(mockCreateTaskStore{}, mockUserStore{})
-	err := repo.CreateTask(nil, &taskmodel.TaskCreate{Title: "Task", Description: "Task description", CreatedBy: 0})
-	assert.NotNil(t, err)
+	for _, tc := range tcs {
+		repo := taskrepo.NewCreateTaskRepo(mock.NewMockTaskStore(), mock.NewMockUserStore())
+		err := repo.CreateTask(nil, &taskmodel.TaskCreate{
+			Title:       tc.title,
+			Description: tc.description,
+			AssigneeId:  tc.assignee,
+			CreatedBy:   tc.createdBy,
+			ParentId:    tc.parentId,
+		})
+		if tc.expectedErr != nil {
+			assert.Error(t, err)
+			assert.Equal(t, tc.expectedErr.Error(), err.Error())
+		} else {
+			assert.Nil(t, err)
+		}
+	}
 }
