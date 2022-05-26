@@ -1,42 +1,39 @@
 package userbiz_test
 
 import (
-	"context"
-	"github.com/japananh/togo/common"
+	"errors"
+	"github.com/japananh/togo/mock"
 	"github.com/japananh/togo/modules/user/userbiz"
 	"github.com/japananh/togo/modules/user/usermodel"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-type mockRegisterStore struct{}
-
-func (mockRegisterStore) FindUser(_ context.Context, conditions map[string]interface{}, _ ...string) (*usermodel.User, error) {
-	if val, ok := conditions["email"]; ok && val == "user@gmail.com" {
-		return &usermodel.User{Email: conditions["email"].(string)}, nil
+func TestUserBiz_Register(t *testing.T) {
+	tcs := []struct {
+		email       string
+		password    string
+		expectedErr error
+	}{
+		{"user1@gmail.com", "user@123", nil},
+		{"user@gmail.com", "user@123", errors.New("user already exists")},
+		{"user2@gmail.com", "", errors.New("password must have at least 8 characters")},
+		{"user3@gmail.com", "user", errors.New("password must have at least 8 characters")},
+		{"user4@gmail.com", "password", errors.New("password must have at least 1 number")},
+		{"user5@gmail.com", "12345678", errors.New("password must have at least 1 letter")},
+		{"user6@gmail.com", "pass1234", errors.New("password must have at least 1 special character")},
+		{"user7@gmail.com", "!@#$%^&*", errors.New("password must have at least 1 number")},
 	}
-	return nil, common.ErrRecordNotFound
-}
 
-func (mockRegisterStore) CreateUser(_ context.Context, data *usermodel.UserCreate) error {
-	data.Id = 2
-	return nil
-}
-
-type mockHash struct{}
-
-func (mockHash) Hash(data string) string {
-	return data
-}
-
-func TestUserBiz_RegisterSucceed(t *testing.T) {
-	biz := userbiz.NewRegisterBiz(mockRegisterStore{}, mockHash{})
-	err := biz.Register(nil, &usermodel.UserCreate{Email: "user1@gmail.com", Password: "user@123"})
-	assert.Nil(t, err)
-}
-
-func TestUserBiz_RegisterErrEmailExisted(t *testing.T) {
-	biz := userbiz.NewRegisterBiz(mockRegisterStore{}, mockHash{})
-	err := biz.Register(nil, &usermodel.UserCreate{Email: "user@gmail.com", Password: "user@123"})
-	assert.NotNil(t, err)
+	for _, tc := range tcs {
+		biz := userbiz.NewRegisterBiz(
+			mock.NewMockUserStore(),
+			mock.NewMockHash(),
+		)
+		err := biz.Register(nil, &usermodel.UserCreate{Email: tc.email, Password: tc.password})
+		if tc.expectedErr != nil {
+			assert.Error(t, err)
+			assert.Equal(t, tc.expectedErr.Error(), err.Error())
+		}
+	}
 }
